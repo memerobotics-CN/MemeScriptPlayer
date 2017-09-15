@@ -209,6 +209,7 @@ static int16_t MMScript_ProcessLine(const char *scriptLine, int16_t *nextLabel, 
             // Wait specified servo to finish command
 
             status = MMS_CTRL_STATUS_NO_CONTROL;
+            in_position = 0;
 
             while (status != MMS_CTRL_STATUS_POSITION_CONTROL || in_position == 0)
             {
