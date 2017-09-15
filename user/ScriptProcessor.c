@@ -389,48 +389,9 @@ _ERR_EXIT:
 
 /* Public functions ---------------------------------------------------------*/
 
-int16_t MMScript_ParseScript(const char *scriptFile)
+int16_t MMScript_ParseScript(char *scriptBuf, size_t bufLen)
 {
-    FILE *fh = fopen(scriptFile, "rb");
-
-    if (fh == NULL)
-        return MMS_PARSE_ERR_FILE;
-
-    fseek(fh, 0, SEEK_END);
-    size_t bytes = ftell(fh);
-
-    if (bytes == 0)
-    {
-        fclose(fh);
-        return MMS_PARSE_ERR_FILE;
-    }
-
-    if (_scriptBuf != NULL)
-    {
-        SAFE_FREE(_scriptBuf);
-    }
-
-    _scriptBuf = (char*)malloc(bytes + 1);
-
-    if (_scriptBuf == NULL)
-    {
-        fclose(fh);
-        return MMS_PARSE_ERR_MALLOC;
-    }
-
-    fseek(fh, 0, SEEK_SET);
-
-    if (fread(_scriptBuf, 1, bytes, fh) != bytes)
-    {
-        fclose(fh);
-        SAFE_FREE(_scriptBuf);
-        return MMS_PARSE_ERR_FILE;
-    }
-
-    fclose(fh);
-
-    _scriptBuf[bytes] = '\0';
-
+    _scriptBuf = scriptBuf;
 
     /**
       * Count lines
@@ -438,7 +399,7 @@ int16_t MMScript_ParseScript(const char *scriptFile)
 
     _lineCount = 1;
 
-    for (size_t i=0; i<bytes; i++)
+    for (size_t i=0; i<bufLen; i++)
     {
         if (*(_scriptBuf + i) == '\n')
         {
@@ -465,7 +426,7 @@ int16_t MMScript_ParseScript(const char *scriptFile)
     _lineEntries[0].startOfLine = _scriptBuf;
     int currLine = 1;
 
-    for (size_t i=0; i<bytes; i++)
+    for (size_t i=0; i<bufLen; i++)
     {
         if (*(_scriptBuf + i) == '\n')
         {
@@ -540,8 +501,6 @@ int16_t MMScript_ParseScript(const char *scriptFile)
             return MMS_PARSE_ERR_MISSING_LABEL;
         }
     }
-
-    fclose(fh);
 
     _stop = 0;
     _nextLabel = _lineEntries[0].label; /* Label of first line */

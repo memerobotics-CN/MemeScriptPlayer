@@ -3,6 +3,7 @@
 
 #include <QTimer>
 #include <QDateTime>
+#include <QFile>
 
 #include "ScriptProcessor.h"
 #include "MemeServoAPI/MemeServoAPI.h"
@@ -73,7 +74,7 @@ ScriptThread::STATUS ScriptThread::status() const
 }
 
 
-int16_t ScriptThread::init(QString fileName, LABEL_UPDATE_CB labelUpdateCallback, SEND_DATA_CB sendDataCallback, LOCAL_ERROR_CB localErrorCallback, NODE_ERROR_CB nodeErrorCallback, LOG_FUNC log)
+int16_t ScriptThread::init(QString scriptFileName, LABEL_UPDATE_CB labelUpdateCallback, SEND_DATA_CB sendDataCallback, LOCAL_ERROR_CB localErrorCallback, NODE_ERROR_CB nodeErrorCallback, LOG_FUNC log)
 {
     _status = ScriptThread::INIT;
 
@@ -87,7 +88,17 @@ int16_t ScriptThread::init(QString fileName, LABEL_UPDATE_CB labelUpdateCallback
     _nodeErrorCallback = nodeErrorCallback;
     _log = log;
 
-    _startLabel = MMScript_ParseScript(fileName.toStdString().c_str());
+
+    QFile inFile(scriptFileName);
+
+    if (!inFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        QThread::exit(-1);
+
+    char *rawData = (char *)malloc(inFile.size() + 1);
+    inFile.read(rawData, inFile.size());
+    rawData[inFile.size()] = '\0';
+
+    _startLabel = MMScript_ParseScript(rawData, inFile.size() + 1);
     return _startLabel;
 }
 

@@ -51,11 +51,12 @@ typedef void (*MMSCRIPT_DELAY_MILLI_SECONDS)(uint32_t ms);
 /**
   * @brief  Parse script & return the next script line label
   * @note   Call this before calling MMS_ExecOneStep().
-  * @param  None
+  * @param  scriptBuf: Malloced script buffer address, memeory will be managed by script procesor.
+  * @param  bufLen: size of scriptBuf.
   * @retval >0 : start script line label
   *         <=0: something error, see parse error codes for detailed info
   */
-int16_t MMScript_ParseScript(const char *scriptFile);
+int16_t MMScript_ParseScript(char *scriptBuf, size_t bufLen);
 
 
 /**

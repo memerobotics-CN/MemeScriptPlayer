@@ -29,7 +29,7 @@ public:
     ScriptThread();
     virtual ~ScriptThread();
 
-    int16_t init(QString fileName, LABEL_UPDATE_CB labelUpdateCallback, SEND_DATA_CB sendDataCallback, LOCAL_ERROR_CB localErrorCallback, NODE_ERROR_CB nodeErrorCallback, LOG_FUNC log);
+    int16_t init(QString scriptFileName, LABEL_UPDATE_CB labelUpdateCallback, SEND_DATA_CB sendDataCallback, LOCAL_ERROR_CB localErrorCallback, NODE_ERROR_CB nodeErrorCallback, LOG_FUNC log);
     void pause();
     void resume();
     void stop();

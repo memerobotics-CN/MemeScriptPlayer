@@ -31,6 +31,9 @@
   <property name="windowTitle">
    <string>脚本执行器</string>
   </property>
+  <property name="locale">
+   <locale language="English" country="UnitedStates"/>
+  </property>
   <widget class="QWidget" name="centralWidget">
    <widget class="QGroupBox" name="groupBox_Port">
     <property name="geometry">
@@ -42,7 +45,7 @@
      </rect>
     </property>
     <property name="title">
-     <string>端口</string>
+     <string>Port Operation</string>
     </property>
     <widget class="QComboBox" name="comboBox_Port">
      <property name="enabled">
@@ -67,7 +70,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>端口：</string>
+      <string>Port:</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -99,7 +102,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>波特率：</string>
+      <string>Baudrate:</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -115,7 +118,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>刷新</string>
+      <string>Refresh</string>
      </property>
     </widget>
     <widget class="QPushButton" name="pushButton_Port">
@@ -131,7 +134,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>打开</string>
+      <string>Open</string>
      </property>
     </widget>
    </widget>
@@ -164,7 +167,7 @@
      </rect>
     </property>
     <property name="title">
-     <string>脚本</string>
+     <string>Script Operation</string>
     </property>
     <widget class="QPushButton" name="pushButton_ScriptLoad">
      <property name="enabled">
@@ -179,7 +182,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>加载</string>
+      <string>Load</string>
      </property>
     </widget>
     <widget class="QPushButton" name="pushButton_ScriptStop">
@@ -195,7 +198,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>停止</string>
+      <string>Pause</string>
      </property>
     </widget>
     <widget class="QPushButton" name="pushButton_ScriptExec">
@@ -211,7 +214,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>执行</string>
+      <string>Exec</string>
      </property>
     </widget>
    </widget>
