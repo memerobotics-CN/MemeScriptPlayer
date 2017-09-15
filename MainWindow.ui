@@ -198,7 +198,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>Pause</string>
+      <string>Stop</string>
      </property>
     </widget>
     <widget class="QPushButton" name="pushButton_ScriptExec">
