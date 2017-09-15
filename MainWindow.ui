@@ -29,7 +29,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>脚本执行器</string>
+   <string>Script Player</string>
   </property>
   <property name="locale">
    <locale language="English" country="UnitedStates"/>
