@@ -97,7 +97,7 @@ typedef struct
                 if (status == MMS_CTRL_STATUS_NO_CONTROL)                                    \
                 {                                                                            \
                     log_func(node_id, "Restart servo.");                                     \
-                    while ((ret = MMS_StartServo(node_id, MMS_MODE_KEEP,                      \
+                    while ((ret = MMS_StartServo(node_id, MMS_MODE_KEEP,                     \
                                                  node_error_callback)) != MMS_RESP_SUCCESS)  \
                     {                                                                        \
                         local_error_callback(node_id, ret);                                  \
