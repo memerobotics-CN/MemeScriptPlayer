@@ -1,17 +1,18 @@
 
 /**
-  * 脚本定义：
+  * Script definition:
   * SCRIPT ::= {LINE}
   * LINE ::= (LABEL ":" (ASSIGN_EXPR | IF_EXPR | ("GOTO" NUMBER) | ("DELAY" NUMBER) | "END" | ACTION)) "CRLF"
   * LABEL ::= NUMBER
-  * ASSIGN_EXPR := "LET" VAR "=" (NUMBER | VAR) {("+" | "-") (NUMBER | VAR)}
-  * IF_EXPR := ("IF(" (VAR | NUMBER) (">" | "<" | ">=" | "<=" | "==" | "!=") (VAR | NUMBER) ")" "THEN" LABEL)
+  * ASSIGN_EXPR := "LET" VAR "=" (NUMBER | VAR) {("+" | "-" | "*" | "/") (NUMBER | VAR)}
+  * IF_EXPR := "IF" "(" (VAR | NUMBER) (">" | "<" | ">=" | "<=" | "==" | "!=") (VAR | NUMBER) ")" "THEN" LABEL
   * VAR ::= ("A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z")
   * ACTION ::= ("WAIT", NODE_ID{"," NODE_ID}) | COMMANDS
   * COMMANDS ::= NODE_ID "," COMMAND{";" NODE_ID "," COMMAND}
   * COMMAND ::= ("START" NUMBER) | "STOP" | "HALT" | ("VM" NUMBER) | ("PVM" NUMBER "," NUMBER) | ("AP" NUMBER) | ("PAP" NUMBER "," NUMBER "," NUMBER) | ("RP" NUMBER) | ("PRP" NUMBER "," NUMBER "," NUMBER)
+  *
+  * Note: ASSIGN_EXPR uses left precedence
   */
-
 
 /* Includes ------------------------------------------------------------------*/
 
