@@ -2,7 +2,7 @@
 /**
   * Script definition:
   * SCRIPT ::= {LINE}
-  * LINE ::= (LABEL ":" (ASSIGN_EXPR | IF_EXPR | ("GOTO" NUMBER) | ("DELAY" NUMBER) | "END" | ACTION)) "CRLF"
+  * LINE ::= (LABEL ":" (ASSIGN_EXPR | IF_EXPR | ("GOTO" NUMBER) | ("DELAY" NUMBER) | "END" | ACTION)) "\r\n"
   * LABEL ::= NUMBER
   * ASSIGN_EXPR := "LET" VAR "=" (NUMBER | VAR) {("+" | "-" | "*" | "/") (NUMBER | VAR)}
   * IF_EXPR := "IF" "(" (VAR | NUMBER) (">" | "<" | ">=" | "<=" | "==" | "!=") (VAR | NUMBER) ")" "THEN" LABEL
