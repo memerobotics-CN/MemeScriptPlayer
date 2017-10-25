@@ -38,6 +38,21 @@ typedef void (*MMSCRIPT_DELAY_MILLI_SECONDS)(uint32_t ms);
 #define MMS_ERR_MISSING_PAP_PARAM     (int16_t)-11  /* Missing parameters for PAP */
 #define MMS_ERR_MISSING_RP_PARAM      (int16_t)-12  /* Missing parameter for RP */
 #define MMS_ERR_MISSING_PRP_PARAM     (int16_t)-13  /* Missing parameters for PRP */
+#define MMS_ERR_INVALID_EXPR_ITEM     (int16_t)-14  /* Invalid Eval EXPR Item Input */
+#define MMS_ERR_INVALID_EXPR_OPERATOR (int16_t)-15  /* Invalid Eval EXPR Operator Input */
+#define MMS_ERR_MISSING_LET_VARNAME   (int16_t)-16  /* Missing LET VARNAME Input*/
+#define MMS_ERR_INVALID_LET_VARNAME   (int16_t)-17  /* Invalid LET VARNAME Input */
+#define MMS_ERR_MISSING_LET_EQUAL     (int16_t)-18  /* Missing LET EQUAL Input */
+#define MMS_ERR_INVALID_LET_EQUAL     (int16_t)-19  /* Invalid LET EQUAL Input*/
+#define MMS_ERR_MISSING_IF_BRACKETS   (int16_t)-20  /* Missing IF Brackets */
+#define MMS_ERR_INVALID_IF_BRACKETS   (int16_t)-21  /* Invalid IF Brackets */
+#define MMS_ERR_INVALID_IF_SYNTAX     (int16_t)-22  /* Invalid IF Syntax */
+#define MMS_ERR_INVALID_IF_INPUT      (int16_t)-23  /* Invalid IF Input */
+#define MMS_ERR_INVALID_IF_OPERATOR   (int16_t)-24  /* Invalid IF Operator */
+#define MMS_ERR_MISSING_THEN_PARAM    (int16_t)-25  /* Missing IF THEN Param */
+#define MMS_ERR_FULL_STACK            (int16_t)-26  /* Full Stack */
+#define MMS_ERR_EMPTY_STACK           (int16_t)-27  /* Empty Stack */
+#define MMS_ERR_MISSING_CALL_PARAM    (int16_t)-28  /* Missing Call Parm*/
 
 /* Parse errors */
 #define MMS_PARSE_ERR_FILE            (int16_t)-101 /* File open error */
@@ -45,18 +60,17 @@ typedef void (*MMSCRIPT_DELAY_MILLI_SECONDS)(uint32_t ms);
 #define MMS_PARSE_ERR_MISSING_LABEL   (int16_t)-103 /* Missing label */
 #define MMS_PARSE_ERR_MISSING_COMMAND (int16_t)-104 /* Missing command */
 
-
 /* Exported functions ------------------------------------------------------- */
 
 /**
   * @brief  Parse script & return the next script line label
   * @note   Call this before calling MMS_ExecOneStep().
-  * @param  scriptBuf: Malloced script buffer address, memeory will be managed by script procesor.
-  * @param  bufLen: size of scriptBuf.
+  * @param  script_buf: Malloced script buffer address, memeory will be managed by script procesor.
+  * @param  buf_len: size of scriptBuf.
   * @retval >0 : start script line label
   *         <=0: something error, see parse error codes for detailed info
   */
-int16_t MMScript_ParseScript(char *scriptBuf, size_t bufLen);
+int16_t MMScript_ParseScript(char *script_buf, size_t buf_len);
 
 
 /**

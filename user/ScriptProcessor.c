@@ -4,8 +4,9 @@
   * SCRIPT ::= {LINE}
   * LINE ::= {LABEL ":" (ASSIGN_EXPR | IF_EXPR | ("GOTO" NUMBER) | ("DELAY" NUMBER) | "END" | ACTION)} "\r\n"
   * LABEL ::= NUMBER
-  * ASSIGN_EXPR := "LET" VAR "=" (NUMBER | VAR) {("+" | "-" | "*" | "/") (NUMBER | VAR)}
-  * IF_EXPR := "IF" "(" (VAR | NUMBER) (">" | "<" | ">=" | "<=" | "==" | "!=") (VAR | NUMBER) ")" "THEN" LABEL
+  * EXPR ::= (NUMBER | VAR) {("+" | "-" | "*" | "/") (NUMBER | VAR)}
+  * ASSIGN_EXPR := "LET" VAR "=" EXPR
+  * IF_EXPR := "IF" "(" EXPR (">" | "<" | ">=" | "<=" | "==" | "!=") EXPR ")" "THEN" LABEL
   * VAR ::= ("A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z")
   * ACTION ::= ("WAIT", NODE_ID{"," NODE_ID}) | COMMANDS
   * COMMANDS ::= NODE_ID "," COMMAND{";" NODE_ID "," COMMAND}
@@ -29,6 +30,7 @@ typedef struct
     int16_t label;
     const char *startOfLine;
 }   LINE_ENTRY;
+
 
 /* Private define ------------------------------------------------------------*/
 
@@ -114,15 +116,21 @@ typedef struct
 
 /* Private macro -------------------------------------------------------------*/
 
+#define MAX_STACK_SIZE 10
+
 
 /* Private variables ---------------------------------------------------------*/
 
 static uint8_t _stop = 0;
-
-static int16_t _nextLabel = 0;
-static char *_scriptBuf = NULL;
+static int16_t vars[26] = {0};  /* 'A' to 'Z' */
+static int16_t _nextLabel = 0;  /*      */
+static char *_scriptBuf = NULL; /*      */
 static LINE_ENTRY *_lineEntries = NULL;
-static int _lineCount = 0;
+static int _lineCount = -1;
+
+
+static uint16_t _run_stack[MAX_STACK_SIZE];
+static int8_t _stack_pointer = -1;
 
 
 /* Private function prototypes -----------------------------------------------*/
@@ -138,33 +146,262 @@ static int _lineCount = 0;
   * @retval >=0: succeeded
   *         <0 : something error
   */
-static int16_t MMScript_ProcessLine(const char *scriptLine, int16_t *nextLabel, MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback, MMSCRIPT_NODE_ERROR_CALLBACK node_error_callback, void (*DelayMilliSecondsImpl)(uint32_t ms), MMSCRIPT_LOG log_func);
+static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback, MMSCRIPT_NODE_ERROR_CALLBACK node_error_callback, void (*DelayMilliSecondsImpl)(uint32_t ms), MMSCRIPT_LOG log_func);
+
+
+/**
+  * @brief  Evaluate expression
+  * @note   This function evaluates expression.
+  * @param  expr: address of expression input
+  * @param  eval_out: evaluate of expreesion input
+  * @retval =0: ended without any error
+  *         <0: something error, see exec error codes for detailed info
+  */
+static int16_t MMScript_Eval(const char *expr, int16_t *eval_out);
+
+
+/**
+  * @brief  Push lineNumber into the Stack
+  * @note   Stack operation
+  * @param  lineNumber: the linenumber of command input
+  * @retval =0: ended without any error
+  *         <0: something error, see exec error codes for detailed info
+  */
+static int16_t MMScript_PushStack(uint16_t lineNumber);
+
+
+/**
+  * @brief  Pop the top element of the Stack
+  * @note   Stack operation
+  * @retval >=0: return the Stack's top element
+  *         <0: something error, see exec error codes for detailed info
+  */
+static int16_t MMScript_PopStack(uint16_t *lineNumber);
 
 
 /* Private functions ---------------------------------------------------------*/
 
-static int16_t MMScript_ProcessLine(const char *scriptLine, int16_t *nextLabel, MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback, MMSCRIPT_NODE_ERROR_CALLBACK node_error_callback, void (*DelayMilliSecondsImpl)(uint32_t ms), MMSCRIPT_LOG log_func)
+static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback, MMSCRIPT_NODE_ERROR_CALLBACK node_error_callback, void (*DelayMilliSecondsImpl)(uint32_t ms), MMSCRIPT_LOG log_func)
 {
+    const char *scriptLine = _lineEntries[*lineNum].startOfLine;
+    const char *p = scriptLine;
     int16_t retVal = 0;
 
-    const char *p;
 
     *nextLabel = -1;    /* Default to next line */
 
     if (scriptLine== NULL)
         return MMS_PARSE_ERR_MALLOC;
 
-    if (strncmp(scriptLine, "LET", 3) == 0)
+    if (strncmp(scriptLine, "CALL", 4) == 0)
     {
         //
-        // TODO: LET
+        // CALL
 
+        int label;
+        int ret;
+
+        if (sscanf(scriptLine + 4, "%d", &label) != 1)
+            ERROR_EXIT(MMS_ERR_MISSING_CALL_PARAM);
+
+        ret = MMScript_PushStack(*lineNum);
+        if (ret < 0)
+            return ret;
+
+        *nextLabel = label;
+    }
+    else if (strncmp(scriptLine, "RET", 3) == 0)
+    {
+        //
+        // RET
+
+        int ret;
+
+        ret = MMScript_PopStack(lineNum);
+
+        if (ret <0)
+            return ret;
+
+        lineNum++;
+    }
+    else if (strncmp(scriptLine, "LET", 3) == 0)
+    {
+        //
+        // LET
+
+        int16_t ret;
+        int16_t result = 0;
+
+        char varname;
+
+        p = strstr(scriptLine, "=");                             /*Find '=' and return the point to p*/
+        if (p == NULL)
+            return MMS_ERR_MISSING_LET_EQUAL;
+
+        p = scriptLine;
+        p += 3;
+        SKIP_SPACE(p);
+
+        if (*p < 'A' || *p > 'Z')
+            return MMS_ERR_MISSING_LET_VARNAME;
+
+        varname = *p;
+
+        p++;
+        while (*p != '=')
+        {
+            if (*p != ' ')
+                return MMS_ERR_INVALID_LET_VARNAME;
+
+            p++;
+        }
+
+        p++;
+        if ((*p < 'A' || *p > 'Z') && (*p < '0' || *p > '9') && *p != ' ')
+            return MMS_ERR_INVALID_LET_EQUAL;
+
+        SKIP_SPACE(p);
+
+        ret = MMScript_Eval(p, &result);
+
+        if(ret < 0)
+            return ret;
+
+        vars[varname - 'A'] = result;
     }
     else if (strncmp(scriptLine, "IF", 2) == 0)
     {
         //
-        // TODO: IF
+        // IF
 
+        int16_t ret;
+
+        int16_t left_val = 0;
+        int16_t right_val = 0;
+        const char *expr_start;
+        char *expr_end;
+        char orig_char;
+        char *operator;
+
+        int label;
+
+        if (strstr(scriptLine, "(") == NULL || strstr(scriptLine, ")") == NULL)   /*Find '(' ')' and check*/
+            return MMS_ERR_MISSING_IF_BRACKETS;
+
+        p = strstr(scriptLine, ")");
+
+        p++;
+        if (strstr(p, "(") != NULL || strstr(p, ")") != NULL)
+            return MMS_ERR_INVALID_IF_BRACKETS;
+
+        p = strstr(scriptLine, "(");
+
+        p++;
+        if (strstr(p, "(") != NULL || *++p == ')')
+            return MMS_ERR_INVALID_IF_BRACKETS;
+
+        p--;
+
+        SKIP_SPACE(p);
+
+        expr_start = p;
+
+        while (*p){
+            if (*p == '>' || *p == '<' || *p == '=' || *p == '!')
+            {
+                operator = (char *)p;
+                orig_char = *operator;
+                expr_end = (char *)p;
+                *expr_end = '\0';
+
+                break;
+            }
+
+            p++;
+        }
+
+        // Eval
+        ret = MMScript_Eval(expr_start, &right_val);
+
+        // Recover
+        *operator = orig_char;
+
+        if (ret < 0)
+            return ret;
+
+        // Parse right expr
+        while (*p == '>' || *p == '<' || *p == '=' || *p == '!')            /*??*/
+            p++;
+
+        expr_start = p;
+        expr_end = strstr(scriptLine, ")");
+        *expr_end = '\0';
+
+        ret = MMScript_Eval(expr_start, &left_val);
+
+        // Recover
+        *expr_end = ')';
+
+        if (ret < 0)
+            return ret;
+
+
+
+        p = strstr(scriptLine, "THEN");          /* THEN LABEL*/
+
+        if(p == NULL)
+            return MMS_ERR_INVALID_IF_SYNTAX;
+
+        p += 4;
+
+        if (sscanf(p, "%d", &label) != 1)
+            ERROR_EXIT(MMS_ERR_MISSING_THEN_PARAM);    /**/
+
+
+        if (strncmp(operator, "==", 2) == 0)
+        {
+            if (right_val == left_val)
+            {
+                *nextLabel = label;
+            }
+        }
+        else if (strncmp(operator, ">=", 2) == 0)
+        {
+            if (right_val >= left_val)
+            {
+                *nextLabel = label;
+            }
+        }
+        else if (strncmp(operator, "<=", 2) == 0)
+        {
+            if (right_val <= left_val)
+            {
+                *nextLabel = label;
+            }
+        }
+        else if (strncmp(operator, "!=", 2) == 0)
+        {
+            if (right_val != left_val)
+            {
+                *nextLabel = label;
+            }
+        }
+        else if (strncmp(operator, ">", 1) == 0)
+        {
+            if (right_val > left_val)
+            {
+                *nextLabel = label;
+            }
+        }
+        else if (strncmp(operator, "<", 1) == 0)
+        {
+            if (right_val < left_val)
+            {
+                *nextLabel = label;
+            }
+        }
+        else
+            return MMS_ERR_INVALID_IF_OPERATOR;
     }
     else if (strncmp(scriptLine, "GOTO", 4) == 0)
     {
@@ -389,6 +626,142 @@ _ERR_EXIT:
 }
 
 
+static int16_t MMScript_Eval(const char *expr, int16_t *result)
+{
+    int number = 0;
+    int n = 0;
+
+    SKIP_SPACE(expr);
+
+    if (*expr <= '9' && *expr >= '0')
+    {
+        sscanf(expr,"%d%n", result, &n);
+        expr += n;
+    }
+    else if (*expr <= 'Z' && *expr >= 'A')
+    {
+        *result = vars[(*expr) - 'A'];
+        expr++;
+    }
+    else
+        return MMS_ERR_INVALID_EXPR_ITEM;
+
+    SKIP_SPACE(expr);
+
+    while (*expr)
+    {
+        if (*expr == '+')
+        {
+            expr++;
+            SKIP_SPACE(expr);
+            if (*expr <= '9' && *expr >= '0')
+            {
+                sscanf(expr,"%d%n", &number, &n);
+                *result += number;
+                expr += n;
+            }
+            else if (*expr <= 'Z' && *expr >= 'A')
+            {
+                *result += vars[(*expr) - 'A'];
+                expr++;
+            }
+            else
+                return MMS_ERR_INVALID_EXPR_ITEM;
+        }
+        else if (*expr == '-')
+        {
+            expr++;
+            SKIP_SPACE(expr);
+            if (*expr <= '9' && *expr >= '0')
+            {
+                sscanf(expr,"%d%n", &number, &n);
+                *result -= number;
+                expr += n;
+            }
+            else if (*expr <= 'Z' && *expr >= 'A')
+            {
+                *result -= vars[(*expr) - 'A'];
+                expr++;
+            }
+            else
+                return MMS_ERR_INVALID_EXPR_ITEM;
+        }
+        else if (*expr == '*')
+        {
+            expr++;
+            SKIP_SPACE(expr);
+            if (*expr <= '9' && *expr >= '0')
+            {
+                sscanf(expr,"%d%n", &number, &n);
+                *result *= number;
+                expr += n;
+            }
+            else if (*expr <= 'Z' && *expr >= 'A')
+            {
+                *result *= vars[(*expr) - 'A'];
+                expr++;
+            }
+            else
+                return MMS_ERR_INVALID_EXPR_ITEM;
+        }
+        else if (*expr == '/')
+        {
+            expr++;
+            SKIP_SPACE(expr);
+            if (*expr <= '9' && *expr >= '0')
+            {
+                sscanf(expr,"%d%n", &number, &n);
+                *result /= number;
+                expr += n;
+            }
+            else if (*expr <= 'Z' && *expr >= 'A')
+            {
+                *result /= vars[(*expr) - 'A'];
+                expr++;
+            }
+            else
+                return MMS_ERR_INVALID_EXPR_ITEM;
+        }
+        else if (*expr >= 'A' && *expr <= 'Z')
+            return MMS_ERR_INVALID_EXPR_ITEM;
+        else if (*expr == ' ')
+            SKIP_SPACE(expr);
+        else
+            return MMS_ERR_INVALID_EXPR_OPERATOR;
+
+        SKIP_SPACE(expr);
+    }
+    return 0;
+}
+
+
+static int16_t MMScript_PushStack(uint16_t lineNumber)
+{
+    if (_stack_pointer >= (MAX_STACK_SIZE - 1))
+    {
+        return MMS_ERR_FULL_STACK;
+    }
+    else
+    {
+        _run_stack[++_stack_pointer] = lineNumber;
+        return 0;
+    }
+}
+
+
+static int16_t MMScript_PopStack(uint16_t *lineNumber)
+{
+    int ret;
+
+    if (_stack_pointer == -1)
+        return MMS_ERR_EMPTY_STACK;
+    else
+    {
+        *lineNumber = _run_stack[_stack_pointer--];
+        return 0;
+    }
+}
+
 /* Public functions ---------------------------------------------------------*/
 
 int16_t MMScript_ParseScript(char *scriptBuf, size_t bufLen)
@@ -503,6 +876,8 @@ int16_t MMScript_ParseScript(char *scriptBuf, size_t bufLen)
             return MMS_PARSE_ERR_MISSING_LABEL;
         }
     }
+    
+    _stack_pointer = -1;
 
     _stop = 0;
     _nextLabel = _lineEntries[0].label; /* Label of first line */
@@ -513,7 +888,7 @@ int16_t MMScript_ParseScript(char *scriptBuf, size_t bufLen)
 
 int16_t MMScript_ExecOneStep(MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback, MMSCRIPT_NODE_ERROR_CALLBACK node_error_callback, MMSCRIPT_DELAY_MILLI_SECONDS DelayMilliSecondsImpl, MMSCRIPT_LOG log_func)
 {
-    int i;
+    uint16_t currLine;
 
     if (_lineCount == 0)
         return 0;
@@ -522,25 +897,25 @@ int16_t MMScript_ExecOneStep(MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback,
 
     if (_nextLabel == -1)
     {
-        i = 0;
+        currLine = 0;
         _nextLabel = _lineEntries[0].label;
     }
     else
     {
-        for (i=0; i<_lineCount; i++)
+        for (currLine=0; currLine<_lineCount; currLine++)
         {
-            if (_lineEntries[i].label == _nextLabel)
+            if (_lineEntries[currLine].label == _nextLabel)
                 break;
         }
 
-        if (i == _lineCount)
+        if (currLine == _lineCount)
         {
             /* NOT found */
             return MMS_ERR_INVALID_LABEL;
         }
     }
 
-    int16_t ret = MMScript_ProcessLine(_lineEntries[i].startOfLine, &_nextLabel, local_error_callback, node_error_callback, DelayMilliSecondsImpl, log_func);
+    int16_t ret = MMScript_ProcessLine(&currLine, &_nextLabel, local_error_callback, node_error_callback, DelayMilliSecondsImpl, log_func);
 
     /* If negtive, indicates something error, return */
     if (ret < 0)
@@ -549,16 +924,21 @@ int16_t MMScript_ExecOneStep(MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback,
     /* NON negtive _nextLabel means next label or ended, while -1 for next line */
     if (_nextLabel == -1)
     {
-        i++;
+        currLine++;
 
-        if (i == _lineCount)
+        while (currLine < _lineCount && _lineEntries[currLine].startOfLine == NULL)
+        {
+            currLine++;
+        }
+
+        if (currLine == _lineCount)
         {
             /* NO found */
             return MMS_ERR_END;
         }
 
         /* Return the label */
-        _nextLabel = _lineEntries[i].label;
+        _nextLabel = _lineEntries[currLine].label;
 
     }
 
