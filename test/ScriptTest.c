@@ -6,12 +6,15 @@
 
 #include "ScriptProcessor.h"
 
-#define SCRIPT_ASSERT(test_id, result)\
-{\
-  if (!(result))\
+#define SCRIPT_ASSERT(test_id, result)                 \
+{                                                      \
+  if (!(result))                                       \
+  {                                                    \
     printf("test %d FAILED: (%s)\n", test_id, #result);\
-  else\
-    printf("test %d OK: (%s)\n", test_id, #result);\
+    exit(-1);                                          \
+  }                                                    \
+  else                                                 \
+    printf("test %d OK: (%s)\n", test_id, #result);    \
 }
 
 
@@ -21,15 +24,44 @@ int main(int argc, char **argv)
   (void)argv;
 
   char script1[] = "1: GOTO 10\r\n";
-  char script2[] = "1: LET A=1 +3* 6-2\r\n2: IF (A==22) THEN 1\r\n3: GOTO 1\r\n";
+  
+  char script2[] =
+  "1: LET A=1 +3* 6-2\r\n"
+  "2: LET A=A+ 1\r\n"
+  "3: IF (A==23) THEN 1\r\n"
+  "4: GOTO 2\r\n";
+  
   char script3[] = "1: LET A 1+3*6-2\r\n";
+  
   char script4[] = "1: LET A==1+3*6-2\r\n";
+  
   char script5[] = "1: LET AA=1+3*6-2\r\n";
+  
   char script6[] = "1: LET =1+3*6-2\r\n";
+  
   char script7[] = "1: LET A = 1 + 3* 6 - 2\r\n";
-  char script8[] = "1: CALL 3\r\n2: LET A=1+3*6-2\r\n3: RET\r\n";
-  char script9[] = "1: LET A = 1\r\n2: CALL 4\r\n3: END\r\n4: LET A = 2\r\n5: RET\r\n";
-  char script10[] = "1: LET A = 1\r\n2: CALL 4\r\n3: END\r\n4: CALL 6\r\n5: RET\r\n6: LET A = 2\r\n7: RET";
+  
+  char script8[] =
+  "1: CALL 3\r\n"
+  "2: LET A=1+3*6-2\r\n"
+  "3: RET\r\n";
+  
+  char script9[] =
+  "1: LET A = 1\r\n"
+  "2: CALL 4\r\n"
+  "3: END\r\n"
+  "4: LET A = 2\r\n"
+  "5: RET\r\n";
+  
+  char script10[] =
+  "1: LET A = 1\r\n"
+  "2: CALL 4\r\n"
+  "3: END\r\n"
+  "4: CALL 6\r\n"
+  "5: RET\r\n"
+  "6: LET A = 2\r\n"
+  "7: RET";
+
   char script11[] =
   " 1: LET A = 1\r\n"
   " 2: CALL 4\r\n"
@@ -120,10 +152,15 @@ int main(int argc, char **argv)
   printf("return value = %d\n", ret);
   SCRIPT_ASSERT(2, ret == 2);
 
-  printf("test %d: %s\n", 3, "IF");
+  printf("test %d: %s\n", 3, "LET");
   ret = MMScript_ExecOneStep(NULL, NULL, NULL, NULL);
   printf("return value = %d\n", ret);
-  SCRIPT_ASSERT(3, ret == 1);
+  SCRIPT_ASSERT(3, ret == 3);
+
+  printf("test %d: %s\n", 4, "IF");
+  ret = MMScript_ExecOneStep(NULL, NULL, NULL, NULL);
+  printf("return value = %d\n", ret);
+  SCRIPT_ASSERT(4, ret == 1);
 
 
   /* Script 3 */
