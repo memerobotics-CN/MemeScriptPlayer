@@ -52,13 +52,6 @@ typedef struct
     }   while(0)
 
 
-#define ERROR_EXIT(err)     \
-    do {                    \
-        retVal = err;       \
-        goto _ERR_EXIT;     \
-    }   while(0)
-
-
 #define FORCE_EXEC(func, node_id, local_error_callback, node_error_callback, log_func)       \
     do {                                                                                     \
         uint8_t ret;                                                                         \
@@ -161,22 +154,23 @@ static int16_t MMScript_Eval(const char *expr, int16_t *eval_out);
 
 
 /**
-  * @brief  Push lineNumber into the Stack
+  * @brief  Push into the Stack
   * @note   Stack operation
-  * @param  lineNumber: the linenumber of command input
-  * @retval =0: ended without any error
-  *         <0: something error, see exec error codes for detailed info
+  * @param  val: the linenumber of command input
+  * @retval >0: ended without any error
+  *         =0: stack full
   */
-static int16_t MMScript_PushStack(uint16_t lineNumber);
+static int16_t MMScript_PushStack(uint16_t val);
 
 
 /**
   * @brief  Pop the top element of the Stack
   * @note   Stack operation
-  * @retval >=0: return the Stack's top element
-  *         <0: something error, see exec error codes for detailed info
+  * @param  val: the pointer of variable to store value
+  * @retval >0: ended without any error
+  *         =0: stack empty
   */
-static int16_t MMScript_PopStack(uint16_t *lineNumber);
+static int16_t MMScript_PopStack(uint16_t *val);
 
 
 /* Private functions ---------------------------------------------------------*/
@@ -185,8 +179,6 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
 {
     const char *scriptLine = _lineEntries[*lineNum].startOfLine;
     const char *p = scriptLine;
-    int16_t retVal = 0;
-
 
     *nextLabel = -1;    /* Default to next line */
 
@@ -199,14 +191,12 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
         // CALL
 
         int label;
-        int ret;
 
         if (sscanf(scriptLine + 4, "%d", &label) != 1)
-            ERROR_EXIT(MMS_ERR_MISSING_CALL_PARAM);
+            return MMS_ERR_MISSING_CALL_PARAM;
 
-        ret = MMScript_PushStack(*lineNum);
-        if (ret < 0)
-            return ret;
+        if (!MMScript_PushStack(*lineNum))
+            return MMS_ERR_FULL_STACK;
 
         *nextLabel = label;
     }
@@ -215,14 +205,8 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
         //
         // RET
 
-        int ret;
-
-        ret = MMScript_PopStack(lineNum);
-
-        if (ret <0)
-            return ret;
-
-        lineNum++;
+        if (!MMScript_PopStack(lineNum))
+          return MMS_ERR_EMPTY_STACK;
     }
     else if (strncmp(scriptLine, "LET", 3) == 0)
     {
@@ -355,7 +339,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
         p += 4;
 
         if (sscanf(p, "%d", &label) != 1)
-            ERROR_EXIT(MMS_ERR_MISSING_THEN_PARAM);    /**/
+            return MMS_ERR_MISSING_THEN_PARAM;    /**/
 
 
         if (strncmp(operator, "==", 2) == 0)
@@ -410,7 +394,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
         int label;
 
         if (sscanf(scriptLine + 4, "%d", &label) != 1)
-            ERROR_EXIT(MMS_ERR_MISSING_GOTO_PARAM);
+            return MMS_ERR_MISSING_GOTO_PARAM;
 
         *nextLabel = label;
     }
@@ -425,7 +409,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
         int delay;
 
         if (sscanf(scriptLine + 5, "%d", &delay) != 1)
-            ERROR_EXIT(MMS_ERR_MISSING_DELAY_PARAM);
+            return MMS_ERR_MISSING_DELAY_PARAM;
 
         // Delay
         DELAY_MS(delay);
@@ -441,7 +425,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
             uint8_t status, in_position;
 
             if (sscanf(p, "%d", &node_id) != 1)
-                ERROR_EXIT(MMS_ERR_MISSING_WAIT_PARAM);
+                return MMS_ERR_MISSING_WAIT_PARAM;
 
             //
             // Wait specified servo to finish command
@@ -500,10 +484,10 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
             token = strchr(p, ',');
 
             if (!token)
-                ERROR_EXIT(MMS_ERR_MISSING_NODE_ID);
+                return MMS_ERR_MISSING_NODE_ID;
 
             if (sscanf(p, "%d", &node_id) != 1)
-                ERROR_EXIT(MMS_ERR_MISSING_NODE_ID);
+                return MMS_ERR_MISSING_NODE_ID;
 
             p = token + 1;
             SKIP_SPACE(p);
@@ -518,10 +502,10 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
                 int mode;
 
                 if (sscanf(p + 5, "%d", &mode) != 1)
-                    ERROR_EXIT(MMS_ERR_ERROR_START_PARAM);
+                    return MMS_ERR_ERROR_START_PARAM;
 
                 if (mode != MMS_MODE_KEEP && mode != MMS_MODE_ZERO && mode != MMS_MODE_RESET)
-                    ERROR_EXIT(MMS_ERR_ERROR_START_PARAM);
+                    return MMS_ERR_ERROR_START_PARAM;
 
                 FORCE_EXEC(MMS_ResetError(node_id, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
                 FORCE_EXEC(MMS_StartServo(node_id, mode, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
@@ -541,7 +525,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
                 int velocity;
 
                 if (sscanf(p + 2, "%d", &velocity) != 1)
-                    ERROR_EXIT(MMS_ERR_MISSING_VM_PARAM);
+                    return MMS_ERR_MISSING_VM_PARAM;
 
                 FORCE_MOVE(MMS_ProfiledVelocityMove(node_id, velocity, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
             }
@@ -552,7 +536,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
                 int accel, velocity;
 
                 if (sscanf(p + 3, "%d,%d", &accel, &velocity) != 2)
-                    ERROR_EXIT(MMS_ERR_MISSING_PVM_PARAM);
+                    return MMS_ERR_MISSING_PVM_PARAM;
 
                 FORCE_EXEC(MMS_SetProfileAcceleration(node_id, accel, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
                 FORCE_MOVE(MMS_ProfiledVelocityMove(node_id, velocity, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
@@ -564,7 +548,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
                 long position;
 
                 if (sscanf(p + 2, "%ld", &position) != 1)
-                    ERROR_EXIT(MMS_ERR_MISSING_AP_PARAM);
+                    return MMS_ERR_MISSING_AP_PARAM;
 
                 FORCE_MOVE(MMS_AbsolutePositionMove(node_id, position, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
             }
@@ -576,7 +560,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
                 long position;
 
                 if (sscanf(p + 3, "%d,%d,%ld", &accel, &velocity, &position) != 3)
-                    ERROR_EXIT(MMS_ERR_MISSING_PAP_PARAM);
+                    return MMS_ERR_MISSING_PAP_PARAM;
 
                 FORCE_EXEC(MMS_SetProfileAcceleration(node_id, accel, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
                 FORCE_EXEC(MMS_SetProfileVelocity(node_id, velocity, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
@@ -589,7 +573,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
                 long position;
 
                 if (sscanf(p + 2, "%ld", &position) != 1)
-                    ERROR_EXIT(MMS_ERR_MISSING_RP_PARAM);
+                    return MMS_ERR_MISSING_RP_PARAM;
 
                 FORCE_MOVE(MMS_RelativePositionMove(node_id, position, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
             }
@@ -601,7 +585,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
                 long position;
 
                 if (sscanf(p + 3, "%d,%d,%ld", &accel, &velocity, &position) != 3)
-                    ERROR_EXIT(MMS_ERR_MISSING_PRP_PARAM);
+                    return MMS_ERR_MISSING_PRP_PARAM;
 
                 FORCE_EXEC(MMS_SetProfileAcceleration(node_id, accel, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
                 FORCE_EXEC(MMS_SetProfileVelocity(node_id, velocity, node_error_callback), node_id, local_error_callback, node_error_callback, log_func);
@@ -610,7 +594,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
             else
             {
                 // Unknown command
-                ERROR_EXIT(MMS_ERR_UNKNOWN_COMMAND);
+                return MMS_ERR_UNKNOWN_COMMAND;
             }
 
             // next COMMAND
@@ -621,8 +605,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
         }
     }
 
-_ERR_EXIT:
-    return retVal;
+    return 0;
 }
 
 
@@ -635,7 +618,12 @@ static int16_t MMScript_Eval(const char *expr, int16_t *result)
 
     if (*expr <= '9' && *expr >= '0')
     {
-        sscanf(expr,"%d%n", result, &n);
+        sscanf(expr,"%d%n", &number, &n);
+
+        if (number > INT16_MAX || number < INT16_MIN)
+            return MMS_ERR_INVALID_EXPR_ITEM;
+
+        *result = (int16_t)number;
         expr += n;
     }
     else if (*expr <= 'Z' && *expr >= 'A')
@@ -735,30 +723,28 @@ static int16_t MMScript_Eval(const char *expr, int16_t *result)
 }
 
 
-static int16_t MMScript_PushStack(uint16_t lineNumber)
+static int16_t MMScript_PushStack(uint16_t val)
 {
     if (_stack_pointer >= (MAX_STACK_SIZE - 1))
     {
-        return MMS_ERR_FULL_STACK;
+        return 0;
     }
     else
     {
-        _run_stack[++_stack_pointer] = lineNumber;
-        return 0;
+        _run_stack[++_stack_pointer] = val;
+        return 1;
     }
 }
 
 
-static int16_t MMScript_PopStack(uint16_t *lineNumber)
+static int16_t MMScript_PopStack(uint16_t *val)
 {
-    int ret;
-
     if (_stack_pointer == -1)
-        return MMS_ERR_EMPTY_STACK;
+        return 0;
     else
     {
-        *lineNumber = _run_stack[_stack_pointer--];
-        return 0;
+        *val = _run_stack[_stack_pointer--];
+        return 1;
     }
 }
 
@@ -890,7 +876,7 @@ int16_t MMScript_ExecOneStep(MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback,
 {
     uint16_t currLine;
 
-    if (_lineCount == 0)
+    if (_lineCount == 0 || _lineEntries == NULL)
         return 0;
 
     /* Find line with label _nextLabel */
