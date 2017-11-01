@@ -265,36 +265,32 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
         const char *expr_start;
         char *expr_end;
         char orig_char;
-        char *operator;
+        char *op = NULL;
+        char *left_bracket, *right_bracket;
 
         int label;
 
-        if (strstr(scriptLine, "(") == NULL || strstr(scriptLine, ")") == NULL)   /*Find '(' ')' and check*/
+        left_bracket = strstr(scriptLine, "(");
+        right_bracket = strstr(scriptLine, ")");
+
+        if (left_bracket == NULL || right_bracket == NULL)   /*Find '(' ')' and check*/
             return MMS_ERR_MISSING_IF_BRACKETS;
 
-        p = strstr(scriptLine, ")");
-
-        p++;
-        if (strstr(p, "(") != NULL || strstr(p, ")") != NULL)
+        if (strstr(left_bracket + 1, "(") != NULL || strstr(right_bracket + 1, ")") != NULL)
             return MMS_ERR_INVALID_IF_BRACKETS;
 
-        p = strstr(scriptLine, "(");
-
-        p++;
-        if (strstr(p, "(") != NULL || *++p == ')')
-            return MMS_ERR_INVALID_IF_BRACKETS;
-
-        p--;
-
+        p = left_bracket + 1;
         SKIP_SPACE(p);
 
         expr_start = p;
 
-        while (*p){
+        /* Locate end of expression */
+        while (*p)
+        {
             if (*p == '>' || *p == '<' || *p == '=' || *p == '!')
             {
-                operator = (char *)p;
-                orig_char = *operator;
+                op = (char *)p;
+                orig_char = *op;
                 expr_end = (char *)p;
                 *expr_end = '\0';
 
@@ -304,17 +300,22 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
             p++;
         }
 
-        // Eval
+        if (op == NULL)
+        {
+            return MMS_ERR_INVALID_IF_SYNTAX;
+        }
+
+        /* Eval */
         ret = MMScript_Eval(expr_start, &right_val);
 
-        // Recover
-        *operator = orig_char;
+        /* Recover */
+        *op = orig_char;
 
         if (ret < 0)
             return ret;
 
-        // Parse right expr
-        while (*p == '>' || *p == '<' || *p == '=' || *p == '!')            /*??*/
+        /* Parse right expr */
+        while (*p == '>' || *p == '<' || *p == '=' || *p == '!')
             p++;
 
         expr_start = p;
@@ -323,13 +324,11 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
 
         ret = MMScript_Eval(expr_start, &left_val);
 
-        // Recover
+        /* Recover */
         *expr_end = ')';
 
         if (ret < 0)
             return ret;
-
-
 
         p = strstr(scriptLine, "THEN");          /* THEN LABEL*/
 
@@ -342,42 +341,42 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
             return MMS_ERR_MISSING_THEN_PARAM;    /**/
 
 
-        if (strncmp(operator, "==", 2) == 0)
+        if (strncmp(op, "==", 2) == 0)
         {
             if (right_val == left_val)
             {
                 *nextLabel = label;
             }
         }
-        else if (strncmp(operator, ">=", 2) == 0)
+        else if (strncmp(op, ">=", 2) == 0)
         {
             if (right_val >= left_val)
             {
                 *nextLabel = label;
             }
         }
-        else if (strncmp(operator, "<=", 2) == 0)
+        else if (strncmp(op, "<=", 2) == 0)
         {
             if (right_val <= left_val)
             {
                 *nextLabel = label;
             }
         }
-        else if (strncmp(operator, "!=", 2) == 0)
+        else if (strncmp(op, "!=", 2) == 0)
         {
             if (right_val != left_val)
             {
                 *nextLabel = label;
             }
         }
-        else if (strncmp(operator, ">", 1) == 0)
+        else if (strncmp(op, ">", 1) == 0)
         {
             if (right_val > left_val)
             {
                 *nextLabel = label;
             }
         }
-        else if (strncmp(operator, "<", 1) == 0)
+        else if (strncmp(op, "<", 1) == 0)
         {
             if (right_val < left_val)
             {
