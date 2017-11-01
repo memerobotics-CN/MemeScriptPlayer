@@ -15,6 +15,7 @@ ScriptThread* ScriptThread::_me = NULL;
 ScriptThread::ScriptThread()
 {
     _me = this;
+    _status = ScriptThread::NEW;
 }
 
 
@@ -171,6 +172,9 @@ void ScriptThread::resume()
 
 void ScriptThread::stop()
 {
+    if (_status == ScriptThread::NEW || _status == ScriptThread::INIT || _status == ScriptThread::STOPPED)
+        return; // NOT running or paused, just return
+
     MMScript_Stop();
 
     // Soft stop

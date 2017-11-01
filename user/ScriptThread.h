@@ -15,6 +15,7 @@ class ScriptThread : public QThread
 
 public:
     enum STATUS {
+        NEW,
         INIT,
         RUNNING,
         PAUSED,
