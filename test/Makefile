@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS =
+CFLAGS = -Wall -O3
+LFLAGS = 
 
 INCLUDES = -I. -I.. -I../user
 LIBS =
@@ -14,7 +15,7 @@ OBJS = $(addsuffix .o, $(basename $(SRCS)))
 	$(CC) -c $(INCLUDES) -o $@ $< $(CFLAGS)
 
 ScriptTest: $(OBJS)
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+	$(CC) -o $@ $^ $(LFLAGS) $(LIBS)
 
 .PHONY: clean
 
