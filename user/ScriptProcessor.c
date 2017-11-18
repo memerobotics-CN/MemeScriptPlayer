@@ -2,7 +2,7 @@
 /**
   * Script definition:
   * SCRIPT ::= {LINE}
-  * LINE ::= {LABEL ":" (ASSIGN_EXPR | IF_EXPR | ("GOTO" NUMBER) | ("DELAY" NUMBER) | ("DELAY" NUMBER) | "RET" | "END" | ACTION)} "\r\n"
+  * LINE ::= {LABEL ":" (ASSIGN_EXPR | IF_EXPR | ("GOTO" NUMBER) | ("DELAY" NUMBER) | ("CALL" NUMBER) | "RET" | "END" | ACTION)} "\r\n"
   * LABEL ::= NUMBER
   * EXPR ::= (NUMBER | VAR) {("+" | "-" | "*" | "/") (NUMBER | VAR)}
   * ASSIGN_EXPR := "LET" VAR "=" EXPR
@@ -423,7 +423,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
             int node_id;
             uint8_t status, in_position;
 
-            if (sscanf(p, "%d", &node_id) != 1)
+            if (sscanf(p, "%x", &node_id) != 1)
                 return MMS_ERR_MISSING_WAIT_PARAM;
 
             //
@@ -485,7 +485,7 @@ static int16_t MMScript_ProcessLine(uint16_t *lineNum, int16_t *nextLabel, MMSCR
             if (!token)
                 return MMS_ERR_MISSING_NODE_ID;
 
-            if (sscanf(p, "%d", &node_id) != 1)
+            if (sscanf(p, "%x", &node_id) != 1)
                 return MMS_ERR_MISSING_NODE_ID;
 
             p = token + 1;
