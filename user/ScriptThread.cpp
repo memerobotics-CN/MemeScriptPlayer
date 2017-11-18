@@ -92,14 +92,15 @@ int16_t ScriptThread::init(QString scriptFileName, LABEL_UPDATE_CB labelUpdateCa
 
     QFile inFile(scriptFileName);
 
-    if (!inFile.open(QIODevice::ReadOnly | QIODevice::Text))
+    if (!inFile.open(QIODevice::ReadOnly))
         QThread::exit(-1);
 
-    char *rawData = (char *)malloc(inFile.size() + 1);
-    inFile.read(rawData, inFile.size());
-    rawData[inFile.size()] = '\0';
+    int fileSize = inFile.size();
+    char *rawData = (char *)malloc(fileSize + 1);
+    inFile.read(rawData, fileSize);
+    rawData[fileSize] = '\0';
 
-    _startLabel = MMScript_ParseScript(rawData, inFile.size() + 1);
+    _startLabel = MMScript_ParseScript(rawData, fileSize + 1);
     return _startLabel;
 }
 
