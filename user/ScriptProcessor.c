@@ -871,6 +871,12 @@ int16_t MMScript_ParseScript(char *scriptBuf, size_t bufLen)
 }
 
 
+void MMScript_SetLabelToExec(int16_t label)
+{
+    _nextLabel = label;
+}
+
+
 int16_t MMScript_ExecOneStep(MMSCRIPT_LOCAL_ERROR_CALLBACK local_error_callback, MMSCRIPT_NODE_ERROR_CALLBACK node_error_callback, MMSCRIPT_DELAY_MILLI_SECONDS DelayMilliSecondsImpl, MMSCRIPT_LOG log_func)
 {
     uint16_t currLine;

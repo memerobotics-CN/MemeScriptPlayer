@@ -74,6 +74,15 @@ int16_t MMScript_ParseScript(char *script_buf, size_t buf_len);
 
 
 /**
+  * @brief  Set the label to execute
+  * @note
+  * @param  label: label for next MMScript_ExecOneStep(...) calling
+  * @retval None
+  */
+void MMScript_SetLabelToExec(int16_t label);
+
+
+/**
   * @brief  Execute oneline & return the next script line label
   * @note   This function should called to execute script step by step.
   * @param  local_error_callback: call back function for local error
